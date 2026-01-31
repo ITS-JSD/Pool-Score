@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pool Score Tracker + Pro 9-Ball</title>
+  <title>Pool Score Tracker (Cloud Sync)</title>
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
@@ -20,27 +20,28 @@
       flex: 1;
       text-align: center;
     }
-    .tab.active {
-      background: #facc15;
-      color: black;
-    }
+    .tab.active { background: #facc15; color: black; }
+
     .card {
       background: rgba(255,255,255,0.08);
       border-radius: 20px;
       padding: 18px;
       box-shadow: 0 0 20px rgba(0,0,0,0.4);
     }
+
     .score {
       font-size: 3rem;
       font-weight: 900;
       text-align: center;
     }
+
     .btn {
       padding: 10px 14px;
       border-radius: 14px;
       font-weight: bold;
       width: 100%;
     }
+
     .history {
       background: rgba(255,255,255,0.12);
       padding: 16px;
@@ -54,7 +55,7 @@
 
 <body class="p-4 sm:p-8">
 
-  <h1 class="text-4xl sm:text-5xl font-extrabold text-center mb-6">🎱 Pool Score Tracker</h1>
+  <h1 class="text-4xl sm:text-5xl font-extrabold text-center mb-6">🎱 Pool Score Tracker (Cloud)</h1>
 
   <!-- Tabs -->
   <div class="flex gap-2 mb-6">
@@ -89,238 +90,214 @@
   </div>
 
 
-<script>
-  function key(mode,s){ return `${s}_${mode}`; }
+<!-- Firebase + Firestore -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  let mode="9ball";
-  let players=[];
-  let history=[];
+  // ✅ Your Firebase Config
+  const firebaseConfig = {
+    apiKey: "AIzaSyADx5Fjh1OuUGyxxmuvzBMnNW09iizwEwc",
+    authDomain: "poolscoretracker-abc76.firebaseapp.com",
+    projectId: "poolscoretracker-abc76",
+    storageBucket: "poolscoretracker-abc76.firebasestorage.app",
+    messagingSenderId: "398668828315",
+    appId: "1:398668828315:web:b59ac77fa48458c8be803e"
+  };
 
-  // Break Queue
-  let breakQueue=[];
-  let breakIndex=0;
-  let lastBreaker=null;
-  let repeatCount=0;
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-  const grid=document.getElementById("playersGrid");
-  const historyBox=document.getElementById("historyBox");
-  const historyTitle=document.getElementById("historyTitle");
-  const endBtn=document.getElementById("endBtn");
-  const breakPlayerEl=document.getElementById("breakPlayer");
 
-  function saveData(){
-    localStorage.setItem(key(mode,"players"),JSON.stringify(players));
-    localStorage.setItem(key(mode,"history"),JSON.stringify(history));
-    localStorage.setItem(key(mode,"breakQueue"),JSON.stringify(breakQueue));
-    localStorage.setItem(key(mode,"breakIndex"),breakIndex);
-    localStorage.setItem(key(mode,"lastBreaker"),lastBreaker);
-    localStorage.setItem(key(mode,"repeatCount"),repeatCount);
+  // ===== App State =====
+  let mode = "9ball";
+  let players = [];
+  let history = [];
+  let breakQueue = [];
+  let breakIndex = 0;
+
+  const grid = document.getElementById("playersGrid");
+  const historyBox = document.getElementById("historyBox");
+  const historyTitle = document.getElementById("historyTitle");
+  const endBtn = document.getElementById("endBtn");
+  const breakPlayerEl = document.getElementById("breakPlayer");
+
+
+  // ===== Firestore Save/Load =====
+  async function saveData() {
+    await setDoc(doc(db, "pool", mode), {
+      players,
+      history,
+      breakQueue,
+      breakIndex
+    });
   }
 
-  function loadData(){
-    players=JSON.parse(localStorage.getItem(key(mode,"players")))||[];
-    history=JSON.parse(localStorage.getItem(key(mode,"history")))||[];
-    breakQueue=JSON.parse(localStorage.getItem(key(mode,"breakQueue")))||[];
-    breakIndex=parseInt(localStorage.getItem(key(mode,"breakIndex")))||0;
-    lastBreaker=localStorage.getItem(key(mode,"lastBreaker"));
-    repeatCount=parseInt(localStorage.getItem(key(mode,"repeatCount")))||0;
-  }
-
-  function updateBreakDisplay(){
-    if(players.length===0){ breakPlayerEl.textContent="-"; return; }
-    if(breakQueue.length===0){ breakPlayerEl.textContent="(ยังไม่สุ่ม)"; return; }
-    breakPlayerEl.textContent=breakQueue[breakIndex]||"-";
-  }
-
-  function shuffleBreakOrder(){
-    if(players.length<2){ alert("ต้องมีผู้เล่นอย่างน้อย 2 คน"); return; }
-
-    breakQueue=players.map(p=>p.name);
-    for(let i=breakQueue.length-1;i>0;i--){
-      const j=Math.floor(Math.random()*(i+1));
-      [breakQueue[i],breakQueue[j]]=[breakQueue[j],breakQueue[i]];
+  async function loadData() {
+    const snap = await getDoc(doc(db, "pool", mode));
+    if (snap.exists()) {
+      const data = snap.data();
+      players = data.players || [];
+      history = data.history || [];
+      breakQueue = data.breakQueue || [];
+      breakIndex = data.breakIndex || 0;
+    } else {
+      players = [];
+      history = [];
+      breakQueue = [];
+      breakIndex = 0;
     }
-    breakIndex=0;
-    lastBreaker=null;
-    repeatCount=0;
-    updateBreakDisplay();
-    saveData();
   }
 
-  function nextBreaker(){
-    if(players.length<2) return;
 
-    if(players.length===2){
-      breakIndex=(breakIndex+1)%breakQueue.length;
-      updateBreakDisplay();
-      saveData();
+  // ===== UI Updates =====
+  function updateBreakDisplay() {
+    if (breakQueue.length === 0) {
+      breakPlayerEl.textContent = "(ยังไม่สุ่ม)";
       return;
     }
+    breakPlayerEl.textContent = breakQueue[breakIndex] || "-";
+  }
 
-    let candidate=breakQueue[breakIndex];
 
-    if(candidate===lastBreaker) repeatCount++;
-    else repeatCount=1;
-
-    if(repeatCount>2){
-      breakIndex=(breakIndex+1)%breakQueue.length;
-      candidate=breakQueue[breakIndex];
-      repeatCount=1;
-    }
-
-    lastBreaker=candidate;
+  // Shuffle Break Order
+  async function shuffleBreakOrder() {
+    breakQueue = players.map(p => p.name);
+    breakQueue.sort(() => Math.random() - 0.5);
+    breakIndex = 0;
     updateBreakDisplay();
-    saveData();
-
-    breakIndex=(breakIndex+1)%breakQueue.length;
+    await saveData();
   }
 
 
-  // --- Score Functions ---
-  function addNormal(i){
+  // Score Additions
+  async function addNormal(i) {
     players[i].score += 1;
+    breakIndex = (breakIndex + 1) % breakQueue.length;
     renderPlayers();
-    nextBreaker();
+    await saveData();
   }
 
-  function addSpecial9(i){
+  async function addSpecial9(i) {
     players[i].score += 2;
+    breakIndex = (breakIndex + 1) % breakQueue.length;
     renderPlayers();
-    nextBreaker();
+    await saveData();
   }
 
-  function subScore(i){
+  async function subScore(i) {
     players[i].score -= 1;
-    if(players[i].score<0) players[i].score=0;
+    if (players[i].score < 0) players[i].score = 0;
+    breakIndex = (breakIndex + 1) % breakQueue.length;
     renderPlayers();
-    nextBreaker();
+    await saveData();
   }
 
 
-  function renderPlayers(){
-    grid.innerHTML="";
+  // Render Players
+  function renderPlayers() {
+    grid.innerHTML = "";
 
-    players.forEach((p,index)=>{
-      const card=document.createElement("div");
-      card.className="card";
+    players.forEach((p, index) => {
+      const card = document.createElement("div");
+      card.className = "card";
 
-      let scoreButtons="";
-
-      if(mode==="9ball"){
+      let scoreButtons = "";
+      if (mode === "9ball") {
         scoreButtons = `
-          <button class="btn bg-green-600" onclick="addNormal(${index})">➕ +1 ปกติ</button>
-          <button class="btn bg-purple-600" onclick="addSpecial9(${index})">🎱 +2 ลูก9พิเศษ</button>
+          <button class="btn bg-green-600" onclick="window.addNormal(${index})">➕ +1 ปกติ</button>
+          <button class="btn bg-purple-600" onclick="window.addSpecial9(${index})">🎱 +2 ลูก9พิเศษ</button>
         `;
       } else {
         scoreButtons = `
-          <button class="btn bg-green-600" onclick="addNormal(${index})">➕ +1</button>
+          <button class="btn bg-green-600" onclick="window.addNormal(${index})">➕ +1</button>
         `;
       }
 
-      card.innerHTML=`
+      card.innerHTML = `
         <h3 class="text-xl font-bold mb-2 text-center">${p.name}</h3>
         <div class="score mb-4">${p.score}</div>
 
         <div class="flex flex-col gap-2 mb-2">
           ${scoreButtons}
-          <button class="btn bg-gray-600" onclick="subScore(${index})">➖ -1</button>
-        </div>
-
-        <div class="flex gap-2">
-          <button class="btn bg-yellow-500 text-black" onclick="editPlayer(${index})">✏️ แก้ชื่อ</button>
-          <button class="btn bg-red-600" onclick="deletePlayer(${index})">🗑 ลบ</button>
+          <button class="btn bg-gray-600" onclick="window.subScore(${index})">➖ -1</button>
         </div>
       `;
 
       grid.appendChild(card);
     });
 
-    saveData();
-  }
-
-
-  function renderHistory(){
-    if(history.length===0){ historyBox.textContent="ยังไม่มีการบันทึก"; return; }
-    historyBox.textContent=history.join("\n\n------------------\n\n");
-  }
-
-  function editPlayer(i){
-    const newName=prompt("แก้ไขชื่อผู้แข่งขัน:",players[i].name);
-    if(!newName) return;
-    players[i].name=newName.trim();
-    renderPlayers();
-  }
-
-  function deletePlayer(i){
-    if(!confirm("ต้องการลบผู้แข่งขันคนนี้ใช่ไหม?")) return;
-    players.splice(i,1);
-    renderPlayers();
-  }
-
-
-  document.getElementById("addBtn").addEventListener("click",()=>{
-    const name=document.getElementById("playerName").value.trim();
-    if(!name) return;
-    players.push({name,score:0});
-    document.getElementById("playerName").value="";
-    renderPlayers();
-  });
-
-  document.getElementById("shuffleBtn").addEventListener("click",shuffleBreakOrder);
-
-
-  endBtn.addEventListener("click",()=>{
-    if(players.length===0) return;
-
-    const today=new Date().toLocaleDateString("th-TH");
-    const month=new Date().toLocaleString("th-TH",{month:"long",year:"numeric"});
-
-    let record = mode==="9ball"
-      ? `📅 Season เดือน: ${month} (${today})\n`
-      : `📅 จบวัน: ${today} (8BALL)\n`;
-
-    players.forEach(p=>{ record += `• ${p.name}: ${p.score} คะแนน\n`; });
-
-    history.unshift(record);
-    players.forEach(p=>p.score=0);
-
-    saveData();
-    renderPlayers();
-    renderHistory();
-
-    alert("✅ บันทึกเรียบร้อย!");
-  });
-
-
-  function switchMode(newMode){
-    mode=newMode;
-    loadData();
-    renderPlayers();
-    renderHistory();
     updateBreakDisplay();
-
-    document.getElementById("tab9").classList.toggle("active",mode==="9ball");
-    document.getElementById("tab8").classList.toggle("active",mode==="8ball");
-
-    if(mode==="9ball"){
-      endBtn.textContent="✅ จบ Season";
-      historyTitle.textContent="📊 สถิติรายเดือน (9-Ball)";
-    } else {
-      endBtn.textContent="✅ จบวัน";
-      historyTitle.textContent="📊 สถิติรายวัน (8-Ball)";
-    }
+    renderHistory();
   }
 
-  document.getElementById("tab9").addEventListener("click",()=>switchMode("9ball"));
-  document.getElementById("tab8").addEventListener("click",()=>switchMode("8ball"));
 
-  switchMode("9ball");
+  // Render History
+  function renderHistory() {
+    if (history.length === 0) {
+      historyBox.textContent = "ยังไม่มีการบันทึก";
+      return;
+    }
+    historyBox.textContent = history.join("\n\n------------------\n\n");
+  }
 
-  window.addNormal=addNormal;
-  window.addSpecial9=addSpecial9;
-  window.subScore=subScore;
-  window.editPlayer=editPlayer;
-  window.deletePlayer=deletePlayer;
+
+  // Add Player
+  document.getElementById("addBtn").addEventListener("click", async () => {
+    const name = document.getElementById("playerName").value.trim();
+    if (!name) return;
+
+    players.push({ name, score: 0 });
+    document.getElementById("playerName").value = "";
+
+    await saveData();
+    renderPlayers();
+  });
+
+
+  // End Season
+  endBtn.addEventListener("click", async () => {
+    const today = new Date().toLocaleDateString("th-TH");
+    history.unshift(`📅 บันทึก (${mode}) : ${today}`);
+
+    players.forEach(p => p.score = 0);
+    await saveData();
+    renderPlayers();
+
+    alert("✅ บันทึกเรียบร้อย! ข้อมูลอยู่บน Cloud แล้ว");
+  });
+
+
+  // Switch Mode
+  async function switchMode(newMode) {
+    mode = newMode;
+    await loadData();
+    renderPlayers();
+
+    document.getElementById("tab9").classList.toggle("active", mode === "9ball");
+    document.getElementById("tab8").classList.toggle("active", mode === "8ball");
+
+    historyTitle.textContent = mode === "9ball"
+      ? "📊 สถิติรายเดือน (9-Ball)"
+      : "📊 สถิติรายวัน (8-Ball)";
+
+    endBtn.textContent = mode === "9ball" ? "✅ จบ Season" : "✅ จบวัน";
+  }
+
+  document.getElementById("tab9").addEventListener("click", () => switchMode("9ball"));
+  document.getElementById("tab8").addEventListener("click", () => switchMode("8ball"));
+
+
+  // Expose functions
+  window.addNormal = addNormal;
+  window.addSpecial9 = addSpecial9;
+  window.subScore = subScore;
+
+
+  // Init
+  await switchMode("9ball");
+  document.getElementById("shuffleBtn").addEventListener("click", shuffleBreakOrder);
+
 </script>
 
 </body>
