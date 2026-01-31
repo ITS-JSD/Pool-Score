@@ -1,226 +1,106 @@
 <!DOCTYPE html>
-<html lang="th">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pool Score Tracker (Mobile Ready)</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+historyBox.textContent=history.join("\n\n------------------\n\n");
+}
 
-  <style>
-    body {
-      background: linear-gradient(to bottom right, #111827, #000000, #1e3a8a);
-      color: white;
-      min-height: 100vh;
-    }
 
-    .tab {
-      padding: 12px 20px;
-      border-radius: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: 0.2s;
-      text-align: center;
-      flex: 1;
-    }
+function editPlayer(i){
+const newName=prompt("แก้ไขชื่อผู้แข่งขัน:",players[i].name);
+if(!newName) return;
+players[i].name=newName.trim();
+renderPlayers();
+}
 
-    .tab.active {
-      background: #facc15;
-      color: black;
-    }
 
-    .card {
-      background: rgba(255,255,255,0.08);
-      border-radius: 20px;
-      padding: 18px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.4);
-      transition: transform 0.2s;
-    }
+function deletePlayer(i){
+if(!confirm("ต้องการลบผู้แข่งขันคนนี้ใช่ไหม?")) return;
+players.splice(i,1);
+renderPlayers();
+}
 
-    .score {
-      font-size: 3rem;
-      font-weight: 900;
-      text-align: center;
-    }
 
-    .btn {
-      padding: 10px 16px;
-      border-radius: 14px;
-      font-weight: bold;
-      transition: 0.2s;
-      width: 100%;
-    }
 
-    .btn:hover {
-      transform: scale(1.03);
-    }
 
-    .history {
-      background: rgba(255,255,255,0.12);
-      padding: 16px;
-      border-radius: 18px;
-      max-height: 250px;
-      overflow-y: auto;
-      white-space: pre-line;
-    }
-  </style>
-</head>
+document.getElementById("addBtn").addEventListener("click",()=>{
+const name=document.getElementById("playerName").value.trim();
+if(!name) return;
+players.push({name,score:0});
+document.getElementById("playerName").value="";
+renderPlayers();
+});
 
-<body class="p-4 sm:p-8">
 
-  <h1 class="text-4xl sm:text-5xl font-extrabold text-center mb-6">🎱 Pool Score Tracker</h1>
+document.getElementById("shuffleBtn").addEventListener("click",shuffleBreakOrder);
 
-  <!-- Tabs -->
-  <div class="flex justify-center gap-2 mb-8">
-    <div id="tab9" class="tab active">9-Ball</div>
-    <div id="tab8" class="tab">8-Ball</div>
-  </div>
 
-  <!-- Add Player Section -->
-  <div class="flex flex-col gap-3 mb-8 max-w-xl mx-auto">
-    <input id="playerName" placeholder="เพิ่มชื่อผู้แข่งขัน..."
-      class="px-4 py-3 rounded-xl text-black w-full"/>
 
-    <button id="addBtn" class="btn bg-yellow-400 text-black">➕ เพิ่มผู้แข่งขัน</button>
-    <button id="endBtn" class="btn bg-red-500">✅ จบ</button>
-  </div>
 
-  <!-- Players Grid -->
-  <div id="playersGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+endBtn.addEventListener("click",()=>{
+if(players.length===0) return;
 
-  <!-- History -->
-  <div class="mt-10">
-    <h2 id="historyTitle" class="text-2xl sm:text-3xl font-bold mb-3">📊 สถิติ</h2>
-    <div id="historyBox" class="history"></div>
-  </div>
 
-  <script>
-    function keyPlayers(mode){ return `players_${mode}`; }
-    function keyHistory(mode){ return `history_${mode}`; }
+const today=new Date().toLocaleDateString("th-TH");
+const month=new Date().toLocaleString("th-TH",{month:"long",year:"numeric"});
 
-    let mode = "9ball";
-    let players = [];
-    let history = [];
 
-    const grid = document.getElementById("playersGrid");
-    const historyBox = document.getElementById("historyBox");
-    const historyTitle = document.getElementById("historyTitle");
-    const endBtn = document.getElementById("endBtn");
+let record = mode==="9ball"
+? `📅 Season เดือน: ${month} (${today})\n`
+: `📅 จบวัน: ${today} (8BALL)\n`;
 
-    function saveData(){
-      localStorage.setItem(keyPlayers(mode), JSON.stringify(players));
-      localStorage.setItem(keyHistory(mode), JSON.stringify(history));
-    }
 
-    function loadData(){
-      players = JSON.parse(localStorage.getItem(keyPlayers(mode))) || [];
-      history = JSON.parse(localStorage.getItem(keyHistory(mode))) || [];
-    }
+players.forEach(p=>{ record += `• ${p.name}: ${p.score} คะแนน\n`; });
 
-    function renderPlayers(){
-      grid.innerHTML = "";
-      players.forEach((p,index)=>{
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `
-          <h3 class="text-xl font-bold mb-2 text-center">${p.name}</h3>
-          <div class="score mb-4">${p.score}</div>
 
-          <div class="flex gap-2 mb-2">
-            <button class="btn bg-green-600" onclick="addScore(${index})">➕ +1</button>
-            <button class="btn bg-gray-600" onclick="subScore(${index})">➖ -1</button>
-          </div>
+history.unshift(record);
+players.forEach(p=>p.score=0);
 
-          <div class="flex gap-2">
-            <button class="btn bg-yellow-500 text-black" onclick="editPlayer(${index})">✏️ แก้ชื่อ</button>
-            <button class="btn bg-red-600" onclick="deletePlayer(${index})">🗑 ลบ</button>
-          </div>
-        `;
-        grid.appendChild(card);
-      });
-      saveData();
-    }
 
-    function renderHistory(){
-      if(history.length===0){
-        historyBox.textContent = "ยังไม่มีการบันทึก";
-        return;
-      }
-      historyBox.textContent = history.join("\n\n------------------\n\n");
-    }
+saveData();
+renderPlayers();
+renderHistory();
 
-    function addScore(i){ players[i].score++; renderPlayers(); }
-    function subScore(i){ players[i].score--; if(players[i].score<0) players[i].score=0; renderPlayers(); }
 
-    function editPlayer(i){
-      const newName = prompt("แก้ไขชื่อผู้แข่งขัน:", players[i].name);
-      if(!newName) return;
-      players[i].name = newName.trim();
-      renderPlayers();
-    }
+alert("✅ บันทึกเรียบร้อย!");
+});
 
-    function deletePlayer(i){
-      if(!confirm("ต้องการลบผู้แข่งขันคนนี้ใช่ไหม?")) return;
-      players.splice(i,1);
-      renderPlayers();
-    }
 
-    document.getElementById("addBtn").addEventListener("click",()=>{
-      const name = document.getElementById("playerName").value.trim();
-      if(!name) return;
-      players.push({name,score:0});
-      document.getElementById("playerName").value="";
-      renderPlayers();
-    });
 
-    endBtn.addEventListener("click",()=>{
-      if(players.length===0) return;
 
-      const today = new Date().toLocaleDateString("th-TH");
-      const month = new Date().toLocaleString("th-TH",{month:"long",year:"numeric"});
+function switchMode(newMode){
+mode=newMode;
+loadData();
+renderPlayers();
+renderHistory();
+updateBreakDisplay();
 
-      let record = mode==="9ball"
-        ? `📅 Season เดือน: ${month} (${today})\n`
-        : `📅 จบวัน: ${today} (8BALL)\n`;
 
-      players.forEach(p=>{ record += `• ${p.name}: ${p.score} คะแนน\n`; });
-      history.unshift(record);
-      players.forEach(p=>p.score=0);
+document.getElementById("tab9").classList.toggle("active",mode==="9ball");
+document.getElementById("tab8").classList.toggle("active",mode==="8ball");
 
-      saveData();
-      renderPlayers();
-      renderHistory();
 
-      alert("✅ บันทึกเรียบร้อย!");
-    });
+if(mode==="9ball"){
+endBtn.textContent="✅ จบ Season";
+historyTitle.textContent="📊 สถิติรายเดือน (9-Ball)";
+} else {
+endBtn.textContent="✅ จบวัน";
+historyTitle.textContent="📊 สถิติรายวัน (8-Ball)";
+}
+}
 
-    function switchMode(newMode){
-      mode=newMode;
-      loadData();
-      renderPlayers();
-      renderHistory();
 
-      document.getElementById("tab9").classList.toggle("active",mode==="9ball");
-      document.getElementById("tab8").classList.toggle("active",mode==="8ball");
+document.getElementById("tab9").addEventListener("click",()=>switchMode("9ball"));
+document.getElementById("tab8").addEventListener("click",()=>switchMode("8ball"));
 
-      if(mode==="9ball"){
-        endBtn.textContent="✅ จบ Season";
-        historyTitle.textContent="📊 สถิติรายเดือน (9-Ball)";
-      } else {
-        endBtn.textContent="✅ จบวัน";
-        historyTitle.textContent="📊 สถิติรายวัน (8-Ball)";
-      }
-    }
 
-    document.getElementById("tab9").addEventListener("click",()=>switchMode("9ball"));
-    document.getElementById("tab8").addEventListener("click",()=>switchMode("8ball"));
+switchMode("9ball");
 
-    switchMode("9ball");
 
-    window.addScore=addScore;
-    window.subScore=subScore;
-    window.editPlayer=editPlayer;
-    window.deletePlayer=deletePlayer;
-  </script>
+window.addNormal=addNormal;
+window.addSpecial9=addSpecial9;
+window.subScore=subScore;
+window.editPlayer=editPlayer;
+window.deletePlayer=deletePlayer;
+</script>
+
 
 </body>
 </html>
