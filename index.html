@@ -193,7 +193,17 @@ function endGame(){
  const sorted=[...players].sort((a,b)=>b.score-a.score);
  const winner=sorted[0];
  let nineCount=winner.nineMid||0;
- let detail=`📅 ${today}\n🏆 Winner: ${winner.name} (${winner.score})`;
+ const first = sorted[0];
+const second = sorted[1] || { name: "-", score: 0 };
+
+let detail =
+  `📅 ${today}\n` +
+  `🏆 Result: ${first.name} ${first.score} - ${second.score} ${second.name}`;
+
+if(mode==="9ball"){
+  detail += `\n🎱 ลูก9กลางเกม: ${first.nineMid||0}`;
+}
+
  if(mode==="9ball") detail+=`\n🎱 ลูก9กลางเกม: ${nineCount}`;
  history.unshift({mode,date:today,winner:winner.name,winnerScore:winner.score,nineMid:nineCount,detail});
  summaryContent.textContent=detail;summaryModal.classList.add("active");
