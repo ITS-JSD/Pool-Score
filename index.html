@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pool Score Tracker FINAL UNIFIED</title>
+  <title>Pool Score Tracker FINAL COMPLETE+</title>
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
@@ -19,49 +19,42 @@
 
     .modal{position:fixed;inset:0;display:none;justify-content:center;align-items:center;background:rgba(0,0,0,0.75);z-index:50;}
     .modal.active{display:flex;}
-    .modal-content{background:#111827;padding:25px;border-radius:20px;max-width:520px;width:90%;white-space:pre-line;}
+    .modal-content{background:#111827;padding:25px;border-radius:20px;max-width:600px;width:90%;white-space:pre-line;}
 
-    /* Settings Drawer */
     #settingsDrawer{position:fixed;top:0;right:-320px;height:100%;width:320px;background:#111827;box-shadow:-4px 0 20px rgba(0,0,0,0.6);padding:20px;transition:0.3s;z-index:60;}
     #settingsDrawer.active{right:0;}
   </style>
 </head>
-
 <body class="p-4 sm:p-8">
 
-<!-- Header -->
 <div class="flex justify-between items-center mb-4">
   <h1 class="text-3xl sm:text-5xl font-extrabold">🎱 Pool Score Tracker</h1>
   <button onclick="toggleSettings()" class="btn bg-gray-700 w-auto px-4">⚙️</button>
 </div>
 
-<!-- Tabs -->
 <div class="flex gap-2 mb-6">
   <div id="tab9" class="tab active">9-Ball</div>
   <div id="tab8" class="tab">8-Ball</div>
 </div>
 
-<!-- Break Order -->
 <div class="card text-center mb-6">
   <h2 class="text-xl font-bold">🎲 ลำดับเปิดเกม (สุ่ม)</h2>
   <div id="breakOrder" class="text-yellow-300 font-bold mt-2"></div>
   <button id="shuffleBtn" class="btn bg-blue-500 mt-3">🎲 สุ่มลำดับใหม่</button>
 </div>
 
-<!-- Add Player -->
 <div class="card mb-6 max-w-xl mx-auto">
   <input id="playerName" placeholder="เพิ่มชื่อผู้แข่งขัน..." class="px-4 py-3 rounded-xl text-black w-full mb-3"/>
   <button id="addBtn" class="btn bg-yellow-400 text-black">➕ เพิ่มผู้แข่งขัน</button>
   <button id="endBtn" class="btn bg-red-500 mt-3">✅ จบวัน / จบ Season</button>
 </div>
 
-<!-- Players -->
 <div id="playersGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10"></div>
 
-<!-- Dashboard -->
 <div class="max-w-4xl mx-auto space-y-6">
   <div class="card"><h2 class="text-2xl font-bold mb-3">🏅 Leaderboard เดือนนี้</h2><div id="leaderboard"></div></div>
   <div class="card"><h2 class="text-2xl font-bold mb-3">📈 ผู้ชนะบ่อยสุด</h2><div id="winnerChart"></div></div>
+  <div class="card"><h2 class="text-2xl font-bold mb-3">🎱 ลูก9กลางเกมรวมเดือนนี้</h2><div id="nineStats"></div></div>
   <div class="card"><h2 class="text-2xl font-bold mb-3">📊 คะแนนเฉลี่ยต่อวัน</h2><div id="avgChart"></div></div>
   <div class="card"><h2 class="text-2xl font-bold mb-3">📅 History</h2><div id="historyBox" class="history"></div></div>
 </div>
@@ -113,13 +106,12 @@ const leaderboardEl=document.getElementById("leaderboard");
 const winnerChartEl=document.getElementById("winnerChart");
 const avgChartEl=document.getElementById("avgChart");
 const historyBox=document.getElementById("historyBox");
-
+const nineStatsEl=document.getElementById("nineStats");
 const scoreModal=document.getElementById("scoreModal");
 const summaryModal=document.getElementById("summaryModal");
 const summaryContent=document.getElementById("summaryContent");
 
-// Settings Drawer
-window.toggleSettings=()=>document.getElementById("settingsDrawer").classList.toggle("active");
+function toggleSettings(){document.getElementById("settingsDrawer").classList.toggle("active");}
 
 async function saveData(){await setDoc(doc(db,"pool",mode),{players,history,breakQueue});}
 async function loadData(){const snap=await getDoc(doc(db,"pool",mode));if(snap.exists()){const d=snap.data();players=d.players||[];history=d.history||[];breakQueue=d.breakQueue||[];}}
@@ -131,7 +123,7 @@ function randomBreakOrder(){if(players.length<2) return;breakQueue=[...players.m
 function updateBreakOrder(){breakOrderEl.textContent=breakQueue.length?breakQueue.join(" → "):"(ยังไม่สุ่ม)";}
 
 function openScoreModal(i){selectedIndex=i;scoreModal.classList.add("active");document.getElementById("nineBtn").style.display=(mode==="9ball")?"block":"none";}
-window.closeScoreModal=()=>scoreModal.classList.remove("active");
+function closeScoreModal(){scoreModal.classList.remove("active");}
 
 function addNormal(){players[selectedIndex].score++;closeScoreModal();if(mode==="9ball") randomBreakOrder();saveData();refresh();}
 function addNine(){players[selectedIndex].score++;players[selectedIndex].nineMid=(players[selectedIndex].nineMid||0)+1;closeScoreModal();if(mode==="9ball") randomBreakOrder();saveData();refresh();}
@@ -149,6 +141,26 @@ function renderPlayers(){grid.innerHTML="";players.forEach((p,i)=>{
  `;
  grid.appendChild(card);
 });}
+
+function renderNineStats(){
+ const current=currentMonthKey();
+ let total=0;
+ history.forEach(r=>{
+  if(r.date && monthKey(r.date)===current && r.nineMid) total+=r.nineMid;
+ });
+ nineStatsEl.textContent = mode==="9ball" ? `รวมลูก9กลางเกมเดือนนี้: ${total}` : "เฉพาะ 9-Ball";
+}
+
+function renderHistory(){
+ historyBox.innerHTML="";
+ history.forEach(h=>{
+  const div=document.createElement("div");
+  div.className="p-2 mb-2 rounded-xl bg-black/40 cursor-pointer";
+  div.textContent=`${h.scoreline}`;
+  div.onclick=()=>{summaryContent.textContent=h.detail;summaryModal.classList.add("active");};
+  historyBox.appendChild(div);
+ });
+}
 
 function renderLeaderboard(){
  const wins={};const current=currentMonthKey();
@@ -168,54 +180,54 @@ function renderWinnerChart(){
 }
 
 function renderAvgChart(){
- const daily={};history.forEach(r=>{if(!daily[r.date]) daily[r.date]=[];daily[r.date].push(r.winnerScore);});
+ const daily={};
+ history.forEach(r=>{if(!daily[r.date]) daily[r.date]=[];daily[r.date].push(r.winnerScore);});
  const entries=Object.entries(daily);
  if(entries.length===0){avgChartEl.textContent="ยังไม่มีข้อมูล";return;}
  avgChartEl.innerHTML=entries.map(([date,scores])=>{const avg=scores.reduce((a,b)=>a+b,0)/scores.length;
  return `<div class="mb-3"><div class="flex justify-between text-sm"><span>${date}</span><span>${avg.toFixed(1)}</span></div><div class="w-full bg-white/10 rounded-xl"><div class="bar" style="width:${avg*10}%"></div></div></div>`;}).join("");
 }
 
-function renderHistory(){
- historyBox.innerHTML="";
- history.forEach(h=>{
-  const div=document.createElement("div");
-  div.className="p-2 mb-2 rounded-xl bg-black/40 cursor-pointer";
-  div.textContent=`${h.mode.toUpperCase()} | ${h.date} | Winner: ${h.winner}`;
-  div.onclick=()=>{summaryContent.textContent=h.detail;summaryModal.classList.add("active");};
-  historyBox.appendChild(div);
- });
-}
-
-function refresh(){renderPlayers();updateBreakOrder();renderLeaderboard();renderWinnerChart();renderAvgChart();renderHistory();}
+function refresh(){renderPlayers();updateBreakOrder();renderLeaderboard();renderWinnerChart();renderNineStats();renderAvgChart();renderHistory();}
 
 function endGame(){
  const today=new Date().toLocaleDateString("th-TH");
  const sorted=[...players].sort((a,b)=>b.score-a.score);
- const winner=sorted[0];
- let nineCount=winner.nineMid||0;
- const first = sorted[0];
-const second = sorted[1] || { name: "-", score: 0 };
+ const first=sorted[0];
+ const second=sorted[1]||{name:"-",score:0};
+ let nineCount=first.nineMid||0;
 
-let detail =
-  `📅 ${today}\n` +
-  `🏆 Result: ${first.name} ${first.score} - ${second.score} ${second.name}`;
+ // Full score list
+ let allScores="📌 คะแนนทั้งหมด:\n";
+ sorted.forEach((p,i)=>{allScores+=`${i+1}. ${p.name} = ${p.score}\n`;});
 
-if(mode==="9ball"){
-  detail += `\n🎱 ลูก9กลางเกม: ${first.nineMid||0}`;
-}
+ let scoreline=`${today} | ${first.name} ${first.score} - ${second.score} ${second.name}`;
 
- if(mode==="9ball") detail+=`\n🎱 ลูก9กลางเกม: ${nineCount}`;
- history.unshift({mode,date:today,winner:winner.name,winnerScore:winner.score,nineMid:nineCount,detail});
- summaryContent.textContent=detail;summaryModal.classList.add("active");
+ let detail=`📅 ${today}\n🏆 Result: ${first.name} ${first.score} - ${second.score} ${second.name}\n`;
+ if(mode==="9ball") detail+=`🎱 ลูก9กลางเกม: ${nineCount}\n`;
+ detail+=`\n${allScores}`;
+
+ history.unshift({
+   mode,
+   date:today,
+   winner:first.name,
+   winnerScore:first.score,
+   nineMid:nineCount,
+   scoreline,
+   detail
+ });
+
+ summaryContent.textContent=detail;
+ summaryModal.classList.add("active");
+
  players.forEach(p=>{p.score=0;p.nineMid=0;});
  saveData();refresh();
 }
 
-window.closeSummary=()=>summaryModal.classList.remove("active");
+function closeSummary(){summaryModal.classList.remove("active");}
 
-// Settings Actions
-window.clearPlayers=async()=>{if(!confirm("ลบผู้เล่นทั้งหมด?") ) return;players=[];await saveData();refresh();};
-window.clearHistory=async()=>{if(!confirm("ลบสถิติทั้งหมด?") ) return;history=[];await saveData();refresh();};
+async function clearPlayers(){if(!confirm("ลบผู้เล่นทั้งหมด?") ) return;players=[];await saveData();refresh();}
+async function clearHistory(){if(!confirm("ลบสถิติทั้งหมด?") ) return;history=[];await saveData();refresh();}
 
 // Events
 
@@ -235,6 +247,12 @@ async function switchMode(newMode){mode=newMode;await loadData();refresh();docum
 await switchMode("9ball");
 
 window.openScoreModal=openScoreModal;
+window.subScore=subScore;
+window.toggleSettings=toggleSettings;
+window.clearPlayers=clearPlayers;
+window.clearHistory=clearHistory;
+window.closeScoreModal=closeScoreModal;
+window.closeSummary=closeSummary;
 </script>
 </body>
 </html>
