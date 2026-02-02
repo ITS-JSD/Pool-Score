@@ -3,338 +3,324 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pool Score Tracker (Full Control)</title>
+  <title>Pool Score Tracker FINAL FULL</title>
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
-    body {
-      background: linear-gradient(to bottom right, #111827, #000000, #1e3a8a);
-      color: white;
-      min-height: 100vh;
-    }
+    body {background: linear-gradient(to bottom right,#111827,#000,#1e3a8a);color:white;min-height:100vh;}
+    .tab{padding:12px 20px;border-radius:16px;font-weight:bold;cursor:pointer;flex:1;text-align:center;}
+    .tab.active{background:#facc15;color:black;}
+    .card{background:rgba(255,255,255,0.08);border-radius:20px;padding:18px;box-shadow:0 0 20px rgba(0,0,0,0.4);}
+    .btn{padding:10px 14px;border-radius:14px;font-weight:bold;width:100%;transition:0.2s;}
+    .btn:hover{transform:scale(1.03);}
+    .score{font-size:3rem;font-weight:900;text-align:center;}
+    .bar{height:18px;border-radius:10px;background:#facc15;}
+    .history{background:rgba(255,255,255,0.12);padding:16px;border-radius:18px;max-height:200px;overflow-y:auto;}
 
-    .tab {
-      padding: 12px 20px;
-      border-radius: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      flex: 1;
-      text-align: center;
-    }
-    .tab.active { background: #facc15; color: black; }
-
-    .card {
-      background: rgba(255,255,255,0.08);
-      border-radius: 20px;
-      padding: 18px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.4);
-    }
-
-    .btn {
-      padding: 10px 14px;
-      border-radius: 14px;
-      font-weight: bold;
-      width: 100%;
-      transition: 0.2s;
-    }
-
-    .btn:hover { transform: scale(1.03); }
-
-    .bar { height: 18px; border-radius: 10px; background: #facc15; }
-
-    .history {
-      background: rgba(255,255,255,0.12);
-      padding: 16px;
-      border-radius: 18px;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-
+    /* Modal */
+    .modal{position:fixed;inset:0;display:none;justify-content:center;align-items:center;background:rgba(0,0,0,0.75);z-index:50;}
+    .modal.active{display:flex;}
+    .modal-content{background:#111827;padding:25px;border-radius:20px;max-width:550px;width:90%;}
   </style>
 </head>
-
 <body class="p-4 sm:p-8">
 
-  <h1 class="text-4xl sm:text-5xl font-extrabold text-center mb-6">🎱 Pool Score Tracker</h1>
+<h1 class="text-4xl sm:text-5xl font-extrabold text-center mb-6">🎱 Pool Score Tracker</h1>
 
-  <!-- Tabs -->
-  <div class="flex gap-2 mb-6">
-    <div id="tab9" class="tab active">9-Ball</div>
-    <div id="tab8" class="tab">8-Ball</div>
+<!-- Tabs -->
+<div class="flex gap-2 mb-6">
+  <div id="tab9" class="tab active">9-Ball</div>
+  <div id="tab8" class="tab">8-Ball</div>
+</div>
+
+<!-- Break Order -->
+<div class="max-w-2xl mx-auto mb-6 text-center">
+  <div class="card">
+    <h2 class="text-xl font-bold">🎲 ลำดับเปิดเกม (สุ่ม)</h2>
+    <div id="breakOrder" class="text-yellow-300 font-bold"></div>
+    <button id="shuffleBtn" class="btn bg-blue-500 mt-3">🎲 สุ่มลำดับใหม่</button>
   </div>
+</div>
 
+<!-- Add Player -->
+<div class="max-w-xl mx-auto flex flex-col gap-3 mb-6">
+  <input id="playerName" placeholder="เพิ่มชื่อผู้แข่งขัน..." class="px-4 py-3 rounded-xl text-black"/>
+  <button id="addBtn" class="btn bg-yellow-400 text-black">➕ เพิ่มผู้แข่งขัน</button>
+  <button id="endBtn" class="btn bg-red-500">✅ จบวัน / จบ Season</button>
+  <button id="clearPlayersBtn" class="btn bg-red-700">🗑 ลบผู้แข่งขันทั้งหมด</button>
+  <button id="clearHistoryBtn" class="btn bg-red-900">🔥 ลบสถิติทั้งหมด</button>
+</div>
 
-  <!-- Players Section -->
-  <div class="max-w-xl mx-auto mb-6 flex flex-col gap-3">
-    <input id="playerName" placeholder="เพิ่มชื่อผู้แข่งขัน..." class="px-4 py-3 rounded-xl text-black"/>
+<!-- Players Grid -->
+<div id="playersGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10"></div>
 
-    <button id="addBtn" class="btn bg-yellow-400 text-black">➕ เพิ่มผู้แข่งขัน</button>
+<!-- Analytics -->
+<div class="max-w-4xl mx-auto space-y-6">
+  <div class="card"><h2 class="text-2xl font-bold mb-3">🏅 Leaderboard เดือนนี้</h2><div id="leaderboard"></div></div>
+  <div class="card"><h2 class="text-2xl font-bold mb-3">📈 ผู้ชนะบ่อยสุด</h2><div id="winnerChart"></div></div>
+  <div class="card"><h2 class="text-2xl font-bold mb-3">📊 คะแนนเฉลี่ยต่อวัน</h2><div id="avgChart"></div></div>
+  <div><h2 class="text-2xl font-bold mb-3">📅 History</h2><div id="historyBox" class="history"></div></div>
+</div>
 
-    <button id="clearPlayersBtn" class="btn bg-red-700">🗑 ลบผู้แข่งขันทั้งหมด</button>
-    <button id="clearHistoryBtn" class="btn bg-red-900">🔥 ลบสถิติทั้งหมด</button>
+<!-- Popup Score Modal -->
+<div id="scoreModal" class="modal">
+  <div class="modal-content">
+    <h2 class="text-xl font-bold mb-3">เลือกการเพิ่มคะแนน</h2>
+    <button id="normalBtn" class="btn bg-green-600 mb-2">➕ +1 ปกติ</button>
+    <button id="nineBtn" class="btn bg-purple-600 mb-2">🎱 +1 ลูก9 SuddenDeath</button>
+    <button onclick="closeScoreModal()" class="btn bg-gray-600">ยกเลิก</button>
   </div>
+</div>
 
-
-  <!-- Players Grid -->
-  <div id="playersGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10"></div>
-
-
-  <!-- Analytics Dashboard -->
-  <div class="max-w-4xl mx-auto space-y-6">
-
-    <div class="card">
-      <h2 class="text-2xl font-bold mb-3">🏅 Leaderboard เดือนนี้</h2>
-      <div id="leaderboard"></div>
-    </div>
-
-    <div class="card">
-      <h2 class="text-2xl font-bold mb-3">📈 ผู้ชนะบ่อยสุด</h2>
-      <div id="winnerChart"></div>
-    </div>
-
-    <div class="card">
-      <h2 class="text-2xl font-bold mb-3">📊 คะแนนเฉลี่ยต่อวัน</h2>
-      <div id="avgChart"></div>
-    </div>
-
-
-    <div>
-      <h2 class="text-2xl font-bold mb-3">📅 บันทึกย้อนหลัง</h2>
-      <div id="historyBox" class="history"></div>
-    </div>
-
+<!-- Summary Modal -->
+<div id="summaryModal" class="modal">
+  <div class="modal-content">
+    <h2 class="text-xl font-bold mb-3">✅ สรุปผล</h2>
+    <div id="summaryContent"></div>
+    <button onclick="closeSummary()" class="btn bg-yellow-400 text-black mt-4">ปิด</button>
   </div>
-
+</div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyADx5Fjh1OuUGyxxmuvzBMnNW09iizwEwc",
-    authDomain: "poolscoretracker-abc76.firebaseapp.com",
-    projectId: "poolscoretracker-abc76",
-    storageBucket: "poolscoretracker-abc76.firebasestorage.app",
-    messagingSenderId: "398668828315",
-    appId: "1:398668828315:web:b59ac77fa48458c8be803e"
-  };
+const firebaseConfig={
+ apiKey:"AIzaSyADx5Fjh1OuUGyxxmuvzBMnNW09iizwEwc",
+ authDomain:"poolscoretracker-abc76.firebaseapp.com",
+ projectId:"poolscoretracker-abc76",
+ messagingSenderId:"398668828315",
+ appId:"1:398668828315:web:b59ac77fa48458c8be803e"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
 
+let mode="9ball";
+let players=[];
+let history=[];
+let breakQueue=[];
+let lastFirst=null;
+let firstRepeat=0;
+let selectedIndex=null;
 
-  let mode="9ball";
-  let players=[];
-  let history=[];
+const grid=document.getElementById("playersGrid");
+const breakOrderEl=document.getElementById("breakOrder");
+const leaderboardEl=document.getElementById("leaderboard");
+const winnerChartEl=document.getElementById("winnerChart");
+const avgChartEl=document.getElementById("avgChart");
+const historyBox=document.getElementById("historyBox");
 
-  const grid=document.getElementById("playersGrid");
-  const historyBox=document.getElementById("historyBox");
+const scoreModal=document.getElementById("scoreModal");
+const summaryModal=document.getElementById("summaryModal");
+const summaryContent=document.getElementById("summaryContent");
 
-  const leaderboardEl=document.getElementById("leaderboard");
-  const winnerChartEl=document.getElementById("winnerChart");
-  const avgChartEl=document.getElementById("avgChart");
+async function saveData(){
+ await setDoc(doc(db,"pool",mode),{players,history,breakQueue,lastFirst,firstRepeat});
+}
+async function loadData(){
+ const snap=await getDoc(doc(db,"pool",mode));
+ if(snap.exists()){
+  const d=snap.data();
+  players=d.players||[];
+  history=d.history||[];
+  breakQueue=d.breakQueue||[];
+  lastFirst=d.lastFirst||null;
+  firstRepeat=d.firstRepeat||0;
+ }
+}
 
-
-  async function saveData(){
-    await setDoc(doc(db,"pool",mode),{players,history});
+function randomBreakOrder(){
+ if(players.length<2) return;
+ let list=[...players.map(p=>p.name)];
+ for(let i=list.length-1;i>0;i--){
+  const j=Math.floor(Math.random()*(i+1));
+  [list[i],list[j]]=[list[j],list[i]];
+ }
+ if(list[0]===lastFirst){
+  firstRepeat++;
+  if(firstRepeat>2){
+   list.push(list.shift());
+   firstRepeat=1;
   }
+ } else firstRepeat=1;
+ lastFirst=list[0];
+ breakQueue=list;
+ updateBreakOrder();
+ saveData();
+}
+function updateBreakOrder(){
+ breakOrderEl.textContent=breakQueue.length?breakQueue.join(" → "):"(ยังไม่สุ่ม)";
+}
 
-  async function loadData(){
-    const snap=await getDoc(doc(db,"pool",mode));
-    if(snap.exists()){
-      const d=snap.data();
-      players=d.players||[];
-      history=d.history||[];
-    }
-  }
+function openScoreModal(i){
+ selectedIndex=i;
+ scoreModal.classList.add("active");
+ document.getElementById("nineBtn").style.display=(mode==="9ball")?"block":"none";
+}
+window.closeScoreModal=()=>scoreModal.classList.remove("active");
 
+function addScore(amount){
+ players[selectedIndex].score+=amount;
+ closeScoreModal();
+ if(mode==="9ball") randomBreakOrder();
+ saveData();
+ refresh();
+}
 
-  // ✅ Render Players with Delete Button
-  function renderPlayers(){
-    grid.innerHTML="";
+function subScore(i){
+ players[i].score--; if(players[i].score<0) players[i].score=0;
+ if(mode==="9ball") randomBreakOrder();
+ saveData();
+ refresh();
+}
 
-    players.forEach((p,index)=>{
-      const card=document.createElement("div");
-      card.className="card";
+function renderPlayers(){
+ grid.innerHTML="";
+ players.forEach((p,i)=>{
+  const card=document.createElement("div");
+  card.className="card";
+  card.innerHTML=`
+   <h3 class="text-xl font-bold text-center mb-2">${p.name}</h3>
+   <div class="score mb-3">${p.score}</div>
+   <button class="btn bg-green-600 mb-2" onclick="openScoreModal(${i})">➕ เพิ่มคะแนน</button>
+   <button class="btn bg-gray-600 mb-2" onclick="subScore(${i})">➖ ลดคะแนน</button>
+   <button class="btn bg-red-600" onclick="deletePlayer(${i})">🗑 ลบผู้เล่น</button>
+  `;
+  grid.appendChild(card);
+ });
+}
 
-      card.innerHTML=`
-        <h3 class="text-xl font-bold text-center">${p.name}</h3>
-        <p class="text-center text-3xl font-extrabold mb-3">${p.score}</p>
+async function deletePlayer(i){
+ if(!confirm("ลบผู้เล่น?") ) return;
+ players.splice(i,1);
+ await saveData();
+ refresh();
+}
 
-        <button class="btn bg-red-600" onclick="window.deletePlayer(${index})">🗑 ลบผู้เล่น</button>
-      `;
+// Analytics
+function monthKey(dateStr){
+ const [d,m,y]=dateStr.split("/"); return `${m}/${y}`;
+}
+function currentMonthKey(){
+ return monthKey(new Date().toLocaleDateString("th-TH"));
+}
 
-      grid.appendChild(card);
-    });
-  }
+function renderLeaderboard(){
+ const wins={};
+ const current=currentMonthKey();
+ history.forEach(r=>{ if(monthKey(r.date)===current) wins[r.winner]=(wins[r.winner]||0)+1; });
+ let sorted=Object.entries(wins).sort((a,b)=>b[1]-a[1]);
+ if(sorted.length===0){leaderboardEl.textContent="ยังไม่มีข้อมูล";return;}
+ const medals=["🥇","🥈","🥉"];
+ leaderboardEl.innerHTML=sorted.map(([n,c],i)=>`<div class="flex justify-between mb-2"><span>${i<3?medals[i]:""} ${n}</span><span>${c} Wins</span></div>`).join("");
+}
 
+function renderWinnerChart(){
+ const wins={};
+ history.forEach(r=>wins[r.winner]=(wins[r.winner]||0)+1);
+ let sorted=Object.entries(wins).sort((a,b)=>b[1]-a[1]);
+ if(sorted.length===0){winnerChartEl.textContent="ยังไม่มีข้อมูล";return;}
+ const max=sorted[0][1];
+ winnerChartEl.innerHTML=sorted.map(([n,c])=>`<div class="mb-3"><div class="flex justify-between text-sm"><span>${n}</span><span>${c}</span></div><div class="w-full bg-white/10 rounded-xl"><div class="bar" style="width:${(c/max)*100}%"></div></div></div>`).join("");
+}
 
-  // ✅ Delete Single Player
-  async function deletePlayer(i){
-    if(!confirm("ต้องการลบผู้เล่นคนนี้ใช่ไหม?")) return;
-    players.splice(i,1);
-    await saveData();
-    refresh();
-  }
+function renderAvgChart(){
+ const daily={};
+ history.forEach(r=>{ if(!daily[r.date]) daily[r.date]=[]; daily[r.date].push(r.winnerScore); });
+ const entries=Object.entries(daily);
+ if(entries.length===0){avgChartEl.textContent="ยังไม่มีข้อมูล";return;}
+ avgChartEl.innerHTML=entries.map(([date,scores])=>{
+  const avg=scores.reduce((a,b)=>a+b,0)/scores.length;
+  return `<div class="mb-3"><div class="flex justify-between text-sm"><span>${date}</span><span>${avg.toFixed(1)}</span></div><div class="w-full bg-white/10 rounded-xl"><div class="bar" style="width:${avg*10}%"></div></div></div>`;
+ }).join("");
+}
 
+function renderHistory(){
+ historyBox.innerHTML="";
+ history.forEach(h=>{
+  const div=document.createElement("div");
+  div.className="p-2 mb-2 rounded-xl bg-black/40";
+  div.textContent=`${h.date} | Winner: ${h.winner}`;
+  historyBox.appendChild(div);
+ });
+}
 
-  // ✅ Clear Players All
-  document.getElementById("clearPlayersBtn").addEventListener("click", async ()=>{
-    if(!confirm("ลบผู้แข่งขันทั้งหมด?")) return;
-    players=[];
-    await saveData();
-    refresh();
-  });
+function refresh(){
+ renderPlayers();
+ updateBreakOrder();
+ renderLeaderboard();
+ renderWinnerChart();
+ renderAvgChart();
+ renderHistory();
+}
 
+// End Game
+function endGame(){
+ const today=new Date().toLocaleDateString("th-TH");
+ const sorted=[...players].sort((a,b)=>b.score-a.score);
+ const winner=sorted[0];
+ if(!winner){alert("ไม่มีผู้เล่น");return;}
 
-  // ✅ Clear History All
-  document.getElementById("clearHistoryBtn").addEventListener("click", async ()=>{
-    if(!confirm("⚠️ ลบสถิติทั้งหมดจริงๆไหม?")) return;
-    history=[];
-    await saveData();
-    refresh();
-  });
+ let record={date:today,winner:winner.name,winnerScore:winner.score};
+ history.unshift(record);
 
+ summaryContent.textContent=`📅 ${today}\n🏆 Winner: ${winner.name} (${winner.score})`;
+ summaryModal.classList.add("active");
 
-  // Add Player
-  document.getElementById("addBtn").addEventListener("click", async ()=>{
-    const name=document.getElementById("playerName").value.trim();
-    if(!name) return;
+ players.forEach(p=>p.score=0);
+ saveData();
+ refresh();
+}
+window.closeSummary=()=>summaryModal.classList.remove("active");
 
-    players.push({name,score:0});
-    document.getElementById("playerName").value="";
+// Buttons
 
-    await saveData();
-    refresh();
-  });
+document.getElementById("addBtn").addEventListener("click",async()=>{
+ const name=document.getElementById("playerName").value.trim();
+ if(!name)return;
+ players.push({name,score:0});
+ await saveData();
+ refresh();
+});
 
+document.getElementById("shuffleBtn").addEventListener("click",randomBreakOrder);
 
-  // ✅ Analytics Functions
-  function monthKey(dateStr){
-    const [d,m,y]=dateStr.split("/");
-    return `${m}/${y}`;
-  }
+document.getElementById("endBtn").addEventListener("click",endGame);
 
-  function currentMonthKey(){
-    return monthKey(new Date().toLocaleDateString("th-TH"));
-  }
+document.getElementById("clearPlayersBtn").addEventListener("click",async()=>{
+ if(!confirm("ลบผู้เล่นทั้งหมด?") ) return;
+ players=[]; await saveData(); refresh();
+});
 
+document.getElementById("clearHistoryBtn").addEventListener("click",async()=>{
+ if(!confirm("ลบสถิติทั้งหมด?") ) return;
+ history=[]; await saveData(); refresh();
+});
 
-  function renderLeaderboard(){
-    const wins={};
-    const current=currentMonthKey();
+// Tabs
+async function switchMode(newMode){
+ mode=newMode;
+ await loadData();
+ refresh();
+ document.getElementById("tab9").classList.toggle("active",mode==="9ball");
+ document.getElementById("tab8").classList.toggle("active",mode==="8ball");
+}
 
-    history.forEach(r=>{
-      if(monthKey(r.date)===current){
-        wins[r.winner]=(wins[r.winner]||0)+1;
-      }
-    });
+document.getElementById("tab9").addEventListener("click",()=>switchMode("9ball"));
+document.getElementById("tab8").addEventListener("click",()=>switchMode("8ball"));
 
-    let sorted=Object.entries(wins).sort((a,b)=>b[1]-a[1]);
+// Modal Buttons
 
-    if(sorted.length===0){ leaderboardEl.textContent="ยังไม่มีข้อมูลเดือนนี้"; return; }
+document.getElementById("normalBtn").addEventListener("click",()=>addScore(1));
+document.getElementById("nineBtn").addEventListener("click",()=>addScore(1));
 
-    const medals=["🥇","🥈","🥉"];
+// Init
+await switchMode("9ball");
 
-    leaderboardEl.innerHTML=sorted.map(([name,count],i)=>{
-      const medal=i<3?medals[i]:"";
-      return `<div class="flex justify-between mb-2">
-        <span>${medal} ${name}</span>
-        <span>${count} Wins</span>
-      </div>`;
-    }).join("");
-  }
-
-
-  function renderWinnerChart(){
-    const wins={};
-    history.forEach(r=>{ wins[r.winner]=(wins[r.winner]||0)+1; });
-
-    let sorted=Object.entries(wins).sort((a,b)=>b[1]-a[1]);
-    if(sorted.length===0){ winnerChartEl.textContent="ยังไม่มีข้อมูล"; return; }
-
-    const max=sorted[0][1];
-
-    winnerChartEl.innerHTML=sorted.map(([name,count])=>`
-      <div class="mb-3">
-        <div class="flex justify-between text-sm">
-          <span>${name}</span><span>${count}</span>
-        </div>
-        <div class="w-full bg-white/10 rounded-xl">
-          <div class="bar" style="width:${(count/max)*100}%"></div>
-        </div>
-      </div>
-    `).join("");
-  }
-
-
-  function renderAvgChart(){
-    const daily={};
-
-    history.forEach(r=>{
-      if(!daily[r.date]) daily[r.date]=[];
-      daily[r.date].push(r.winnerScore);
-    });
-
-    const entries=Object.entries(daily);
-    if(entries.length===0){ avgChartEl.textContent="ยังไม่มีข้อมูล"; return; }
-
-    avgChartEl.innerHTML=entries.map(([date,scores])=>{
-      const avg=scores.reduce((a,b)=>a+b,0)/scores.length;
-      return `
-        <div class="mb-3">
-          <div class="flex justify-between text-sm">
-            <span>${date}</span>
-            <span>${avg.toFixed(1)}</span>
-          </div>
-          <div class="w-full bg-white/10 rounded-xl">
-            <div class="bar" style="width:${avg*10}%"></div>
-          </div>
-        </div>
-      `;
-    }).join("");
-  }
-
-
-  function renderHistory(){
-    historyBox.innerHTML="";
-    history.forEach(h=>{
-      const div=document.createElement("div");
-      div.className="p-2 mb-2 rounded-xl bg-black/40";
-      div.textContent=`${h.date} | Winner: ${h.winner}`;
-      historyBox.appendChild(div);
-    });
-  }
-
-
-  function refresh(){
-    renderPlayers();
-    renderLeaderboard();
-    renderWinnerChart();
-    renderAvgChart();
-    renderHistory();
-  }
-
-
-  // Tabs
-  async function switchMode(newMode){
-    mode=newMode;
-    await loadData();
-    refresh();
-
-    document.getElementById("tab9").classList.toggle("active",mode==="9ball");
-    document.getElementById("tab8").classList.toggle("active",mode==="8ball");
-  }
-
-  document.getElementById("tab9").addEventListener("click",()=>switchMode("9ball"));
-  document.getElementById("tab8").addEventListener("click",()=>switchMode("8ball"));
-
-
-  // Init
-  await switchMode("9ball");
-
-
-  window.deletePlayer=deletePlayer;
+window.openScoreModal=openScoreModal;
+window.subScore=subScore;
+window.deletePlayer=deletePlayer;
 </script>
 
 </body>
