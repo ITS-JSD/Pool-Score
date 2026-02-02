@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pool Score Tracker (Full Analytics)</title>
+  <title>Pool Score Tracker (Full Control)</title>
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
@@ -12,6 +12,7 @@
       color: white;
       min-height: 100vh;
     }
+
     .tab {
       padding: 12px 20px;
       border-radius: 16px;
@@ -34,7 +35,12 @@
       border-radius: 14px;
       font-weight: bold;
       width: 100%;
+      transition: 0.2s;
     }
+
+    .btn:hover { transform: scale(1.03); }
+
+    .bar { height: 18px; border-radius: 10px; background: #facc15; }
 
     .history {
       background: rgba(255,255,255,0.12);
@@ -43,10 +49,6 @@
       max-height: 200px;
       overflow-y: auto;
     }
-
-    .bar { height: 18px; border-radius: 10px; background: #facc15; }
-
-    .medal { font-size: 1.4rem; }
 
   </style>
 </head>
@@ -62,6 +64,17 @@
   </div>
 
 
+  <!-- Players Section -->
+  <div class="max-w-xl mx-auto mb-6 flex flex-col gap-3">
+    <input id="playerName" placeholder="เพิ่มชื่อผู้แข่งขัน..." class="px-4 py-3 rounded-xl text-black"/>
+
+    <button id="addBtn" class="btn bg-yellow-400 text-black">➕ เพิ่มผู้แข่งขัน</button>
+
+    <button id="clearPlayersBtn" class="btn bg-red-700">🗑 ลบผู้แข่งขันทั้งหมด</button>
+    <button id="clearHistoryBtn" class="btn bg-red-900">🔥 ลบสถิติทั้งหมด</button>
+  </div>
+
+
   <!-- Players Grid -->
   <div id="playersGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10"></div>
 
@@ -69,26 +82,22 @@
   <!-- Analytics Dashboard -->
   <div class="max-w-4xl mx-auto space-y-6">
 
-    <!-- Leaderboard -->
     <div class="card">
-      <h2 class="text-2xl font-bold mb-3">🏅 Leaderboard (เดือนนี้)</h2>
+      <h2 class="text-2xl font-bold mb-3">🏅 Leaderboard เดือนนี้</h2>
       <div id="leaderboard"></div>
     </div>
 
-    <!-- Winner Chart -->
     <div class="card">
       <h2 class="text-2xl font-bold mb-3">📈 ผู้ชนะบ่อยสุด</h2>
       <div id="winnerChart"></div>
     </div>
 
-    <!-- Avg Score Per Day -->
     <div class="card">
       <h2 class="text-2xl font-bold mb-3">📊 คะแนนเฉลี่ยต่อวัน</h2>
       <div id="avgChart"></div>
     </div>
 
 
-    <!-- History -->
     <div>
       <h2 class="text-2xl font-bold mb-3">📅 บันทึกย้อนหลัง</h2>
       <div id="historyBox" class="history"></div>
@@ -112,6 +121,7 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+
 
   let mode="9ball";
   let players=[];
@@ -139,34 +149,77 @@
   }
 
 
-  // Render Players (simple)
+  // ✅ Render Players with Delete Button
   function renderPlayers(){
     grid.innerHTML="";
-    players.forEach(p=>{
+
+    players.forEach((p,index)=>{
       const card=document.createElement("div");
       card.className="card";
+
       card.innerHTML=`
         <h3 class="text-xl font-bold text-center">${p.name}</h3>
-        <p class="text-center text-3xl font-extrabold">${p.score}</p>
+        <p class="text-center text-3xl font-extrabold mb-3">${p.score}</p>
+
+        <button class="btn bg-red-600" onclick="window.deletePlayer(${index})">🗑 ลบผู้เล่น</button>
       `;
+
       grid.appendChild(card);
     });
   }
 
 
-  // ✅ Filter Month Only
+  // ✅ Delete Single Player
+  async function deletePlayer(i){
+    if(!confirm("ต้องการลบผู้เล่นคนนี้ใช่ไหม?")) return;
+    players.splice(i,1);
+    await saveData();
+    refresh();
+  }
+
+
+  // ✅ Clear Players All
+  document.getElementById("clearPlayersBtn").addEventListener("click", async ()=>{
+    if(!confirm("ลบผู้แข่งขันทั้งหมด?")) return;
+    players=[];
+    await saveData();
+    refresh();
+  });
+
+
+  // ✅ Clear History All
+  document.getElementById("clearHistoryBtn").addEventListener("click", async ()=>{
+    if(!confirm("⚠️ ลบสถิติทั้งหมดจริงๆไหม?")) return;
+    history=[];
+    await saveData();
+    refresh();
+  });
+
+
+  // Add Player
+  document.getElementById("addBtn").addEventListener("click", async ()=>{
+    const name=document.getElementById("playerName").value.trim();
+    if(!name) return;
+
+    players.push({name,score:0});
+    document.getElementById("playerName").value="";
+
+    await saveData();
+    refresh();
+  });
+
+
+  // ✅ Analytics Functions
   function monthKey(dateStr){
     const [d,m,y]=dateStr.split("/");
     return `${m}/${y}`;
   }
 
   function currentMonthKey(){
-    const now=new Date().toLocaleDateString("th-TH");
-    return monthKey(now);
+    return monthKey(new Date().toLocaleDateString("th-TH"));
   }
 
 
-  // ✅ Leaderboard Top3 + Separate by Mode
   function renderLeaderboard(){
     const wins={};
     const current=currentMonthKey();
@@ -179,26 +232,20 @@
 
     let sorted=Object.entries(wins).sort((a,b)=>b[1]-a[1]);
 
-    if(sorted.length===0){
-      leaderboardEl.textContent="ยังไม่มีข้อมูลเดือนนี้";
-      return;
-    }
+    if(sorted.length===0){ leaderboardEl.textContent="ยังไม่มีข้อมูลเดือนนี้"; return; }
 
     const medals=["🥇","🥈","🥉"];
 
-    leaderboardEl.innerHTML=sorted.slice(0,10).map(([name,count],i)=>{
+    leaderboardEl.innerHTML=sorted.map(([name,count],i)=>{
       const medal=i<3?medals[i]:"";
-      return `
-        <div class="flex justify-between mb-2">
-          <span class="font-bold">${medal} ${name}</span>
-          <span>${count} Wins (${mode})</span>
-        </div>
-      `;
+      return `<div class="flex justify-between mb-2">
+        <span>${medal} ${name}</span>
+        <span>${count} Wins</span>
+      </div>`;
     }).join("");
   }
 
 
-  // ✅ Winner Frequency Chart
   function renderWinnerChart(){
     const wins={};
     history.forEach(r=>{ wins[r.winner]=(wins[r.winner]||0)+1; });
@@ -208,22 +255,19 @@
 
     const max=sorted[0][1];
 
-    winnerChartEl.innerHTML=sorted.map(([name,count])=>{
-      return `
-        <div class="mb-3">
-          <div class="flex justify-between text-sm">
-            <span>${name}</span><span>${count}</span>
-          </div>
-          <div class="w-full bg-white/10 rounded-xl">
-            <div class="bar" style="width:${(count/max)*100}%"></div>
-          </div>
+    winnerChartEl.innerHTML=sorted.map(([name,count])=>`
+      <div class="mb-3">
+        <div class="flex justify-between text-sm">
+          <span>${name}</span><span>${count}</span>
         </div>
-      `;
-    }).join("");
+        <div class="w-full bg-white/10 rounded-xl">
+          <div class="bar" style="width:${(count/max)*100}%"></div>
+        </div>
+      </div>
+    `).join("");
   }
 
 
-  // ✅ Average Score Per Day Chart
   function renderAvgChart(){
     const daily={};
 
@@ -236,12 +280,12 @@
     if(entries.length===0){ avgChartEl.textContent="ยังไม่มีข้อมูล"; return; }
 
     avgChartEl.innerHTML=entries.map(([date,scores])=>{
-      const avg = scores.reduce((a,b)=>a+b,0)/scores.length;
+      const avg=scores.reduce((a,b)=>a+b,0)/scores.length;
       return `
         <div class="mb-3">
           <div class="flex justify-between text-sm">
             <span>${date}</span>
-            <span>Avg Winner Score: ${avg.toFixed(1)}</span>
+            <span>${avg.toFixed(1)}</span>
           </div>
           <div class="w-full bg-white/10 rounded-xl">
             <div class="bar" style="width:${avg*10}%"></div>
@@ -252,7 +296,6 @@
   }
 
 
-  // History List
   function renderHistory(){
     historyBox.innerHTML="";
     history.forEach(h=>{
@@ -264,16 +307,20 @@
   }
 
 
-  // Switch Mode
-  async function switchMode(newMode){
-    mode=newMode;
-    await loadData();
-
+  function refresh(){
     renderPlayers();
     renderLeaderboard();
     renderWinnerChart();
     renderAvgChart();
     renderHistory();
+  }
+
+
+  // Tabs
+  async function switchMode(newMode){
+    mode=newMode;
+    await loadData();
+    refresh();
 
     document.getElementById("tab9").classList.toggle("active",mode==="9ball");
     document.getElementById("tab8").classList.toggle("active",mode==="8ball");
@@ -282,7 +329,12 @@
   document.getElementById("tab9").addEventListener("click",()=>switchMode("9ball"));
   document.getElementById("tab8").addEventListener("click",()=>switchMode("8ball"));
 
+
+  // Init
   await switchMode("9ball");
+
+
+  window.deletePlayer=deletePlayer;
 </script>
 
 </body>
